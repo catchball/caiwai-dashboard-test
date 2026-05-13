@@ -4,7 +4,7 @@ import {
   ChevronDown, Sparkles, Zap, RefreshCw,
   Flame, Sprout, Mountain, Sunset,
   Newspaper, Youtube, Twitter,
-  List, FileText, Clock, Share2, Copy, Eye, Brain, Tag
+  List, FileText, Clock, Share2, Copy, Eye, Brain, Tag, CheckCircle2
 } from "lucide-react";
 import { T, font } from "../tokens";
 import {
@@ -857,8 +857,6 @@ const WatchModeV8 = ({ articles, setArticles, isPremium, activeType, setActiveTy
    レポートモード（ユーザー名: レポート）
    サマリー（ユーザー名: サマリー）+ メトリクス + 推奨アクション
    ═══════════════════════════════════════════════════════════ */
-
-
 export {
   useResizablePane, Chip, MaturityBadge, Favicon,
   AllCaughtUp, UpgradeToast, DateSeparator,

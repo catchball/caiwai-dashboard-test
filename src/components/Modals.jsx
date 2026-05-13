@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import {
   X, Copy, CheckCircle2, Send, ArrowRight,
-  Mail, UserPlus, Settings, ExternalLink, Share2, Bell, Sparkles
+  Mail, UserPlus, Settings, ExternalLink, Share2, Bell, Sparkles, Eye
 } from "lucide-react";
 import { T, font } from "../tokens";
 import { shareViaUrl } from "../utils";
