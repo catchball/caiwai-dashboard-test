@@ -1,0 +1,21 @@
+# dependencies
+node_modules/
+
+# build output (gh-pages branch manages this separately)
+dist/
+
+# local env files
+.env
+.env.local
+.env.*.local
+
+# editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# logs
+npm-debug.log*
