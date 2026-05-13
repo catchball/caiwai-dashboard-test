@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import {
   X, Copy, CheckCircle2, Send, ArrowRight,
-  Mail, UserPlus, Settings, ExternalLink, Share2, Bell
+  Mail, UserPlus, Settings, ExternalLink, Share2, Bell, Sparkles
 } from "lucide-react";
 import { T, font } from "../tokens";
 import { shareViaUrl } from "../utils";
@@ -536,8 +536,6 @@ const AllCaughtUpToast = ({ onInvite, onDismiss }) => (
    スマホファースト: 縦並び・フル幅・下部固定ナビ
    PC: 中央固定幅800〜1000px
    ═══════════════════════════════════════════════════════════ */
-
-
 export {
   ModalBackdrop, InviteFormModal, InviteSuccessModal,
   SettingsModal, SignupCompleteScreen, AllCaughtUpToast
