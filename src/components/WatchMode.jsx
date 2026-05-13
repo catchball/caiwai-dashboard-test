@@ -206,12 +206,16 @@ const DateSeparator = ({ date, isFirst, isNew }) => {
 /* --- ハイライト（帯）— 一覧モード上部、折りたたみ可 --- */
 /* 雑誌の帯: 今日の記事群の全体像を、編集眼のある2〜4文で伝える              */
 /* 代表記事リンク: テキスト内の固有名詞をタップ → 右ペインの該当記事へ       */
-const WatchInsightBar = ({ onNavigateAnalysis, onArticleTap, alwaysExpanded = false, maxWidth }) => {
+const WatchInsightBar = ({ onNavigateAnalysis, onArticleTap, alwaysExpanded = false, maxWidth, highlight }) => {
   const [collapsed, setCollapsed] = useState(() => {
     if (alwaysExpanded) return false;
     if (typeof window === "undefined") return false;
     return window.matchMedia("(max-width: 768px)").matches;
   });
+  // 優先順: props.highlight > mockData の HIGHLIGHT_*
+  const hlDate = highlight?.date || HIGHLIGHT_DATE;
+  const hlSegments = (highlight?.segments && highlight.segments.length > 0) ? highlight.segments : HIGHLIGHT_SEGMENTS;
+  const hlCollapsed = highlight?.collapsed || HIGHLIGHT_COLLAPSED;
   return (
     <div
       onClick={alwaysExpanded ? undefined : () => setCollapsed(!collapsed)}
@@ -236,16 +240,16 @@ const WatchInsightBar = ({ onNavigateAnalysis, onArticleTap, alwaysExpanded = fa
         lineHeight: 1,
       }}>
         <Sparkles size={11} color="#fff" />
-        <span>{HIGHLIGHT_DATE}</span>
+        <span>{hlDate}</span>
       </div>
       <div style={{ paddingTop: collapsed ? 14 : 16 }}>
         {collapsed ? (
           <div style={{ fontSize: 12, fontWeight: 600, color: T.ink80, lineHeight: 1.5 }}>
-            <span style={{ fontWeight: 700, color: T.ink }}>{HIGHLIGHT_COLLAPSED}</span>
+            <span style={{ fontWeight: 700, color: T.ink }}>{hlCollapsed}</span>
           </div>
         ) : (
           <div style={{ fontSize: 13, fontWeight: 500, color: T.ink80, lineHeight: 1.7, ...(alwaysExpanded ? {} : { display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>
-            {HIGHLIGHT_SEGMENTS.map((seg, i) => {
+            {hlSegments.map((seg, i) => {
               if (typeof seg === "string") return <span key={i}>{seg}</span>;
               return (
                 <span key={i}
@@ -659,7 +663,7 @@ const TomorrowCard = ({ compact = false }) => (
 
 
 /* --- WatchModeV8 — 左右分割 + 連続詳細フィード（SplitArticleView 利用） --- */
-const WatchModeV8 = ({ articles, setArticles, isPremium, activeType, setActiveType, unreadCount, onSetMode, newsSubType, setNewsSubType, toriatsukaiFilter, setToriatsukaiFilter, searchKeyword }) => {
+const WatchModeV8 = ({ articles, setArticles, isPremium, activeType, setActiveType, unreadCount, onSetMode, newsSubType, setNewsSubType, toriatsukaiFilter, setToriatsukaiFilter, searchKeyword, highlight, lastSeenDate = LAST_SEEN_DATE }) => {
   const [toast, setToast] = useState(null);
 
   /* === データロジック === */
@@ -697,9 +701,9 @@ const WatchModeV8 = ({ articles, setArticles, isPremium, activeType, setActiveTy
         const sumB = b.reduce((s, x) => s + x.score, 0);
         return sumB - sumA;
       });
-      return { date, clusters, isNew: _parseDate(date) > _parseDate(LAST_SEEN_DATE) };
+      return { date, clusters, isNew: _parseDate(date) > _parseDate(lastSeenDate) };
     });
-  }, [articles, activeType, newsSubType, toriatsukaiFilter, searchKeyword]);
+  }, [articles, activeType, newsSubType, toriatsukaiFilter, searchKeyword, lastSeenDate]);
 
   const { visibleGroups, totalCount, freeCappedCount, blurPreviewArticles } = useMemo(() => {
     const allFlat = dateGroups.flatMap(g => g.clusters.flat());
@@ -754,7 +758,7 @@ const WatchModeV8 = ({ articles, setArticles, isPremium, activeType, setActiveTy
   return (
     <>
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "8px 16px" }}>
-        <WatchInsightBar onNavigateAnalysis={() => onSetMode("analysis")} onArticleTap={() => {}} maxWidth={600} alwaysExpanded />
+        <WatchInsightBar onNavigateAnalysis={() => onSetMode("analysis")} onArticleTap={() => {}} maxWidth={600} alwaysExpanded highlight={highlight} />
         <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 4px" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
             <SourcePills active={activeType} onChange={setActiveType} toriatsukaiFilter={toriatsukaiFilter} onToriatsukaiChange={setToriatsukaiFilter} />
@@ -784,7 +788,7 @@ const WatchModeV8 = ({ articles, setArticles, isPremium, activeType, setActiveTy
                     <div key={article.id} ref={el => { if (el) slimRefs.current[article.id] = el; else delete slimRefs.current[article.id]; }}>
                       <SlimCard
                         article={article}
-                        isNew={isNewArticle(article)}
+                        isNew={isNewArticle(article, lastSeenDate)}
                         isCurrent={currentId === article.id}
                         onClick={(e) => onSlimClick(article.id, e.currentTarget)}
                       />
@@ -828,7 +832,7 @@ const WatchModeV8 = ({ articles, setArticles, isPremium, activeType, setActiveTy
               >
                 <DetailCard
                   article={article}
-                  isNew={isNewArticle(article)}
+                  isNew={isNewArticle(article, lastSeenDate)}
                   onBookmark={() => handleBookmark(article.id)}
                   onShare={(art) => shareViaUrl({
                     title: art.title || "caiwai 記事",

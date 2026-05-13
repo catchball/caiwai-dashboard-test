@@ -5,10 +5,11 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { T, font } from "./tokens";
-import { _parseDate, isNewArticle, filterByPeriod, matchType } from "./utils";
+import { _parseDate, isNewArticle, filterByPeriod, matchType, adaptArticle } from "./utils";
 import {
   ARTICLES, INITIAL_ARTICLES, LAST_SEEN_DATE,
-  TORIATSUKAI_DEFAULT, PERIOD_OPTIONS, DATA_DATE_RANGE
+  TORIATSUKAI_DEFAULT, PERIOD_OPTIONS, DATA_DATE_RANGE,
+  HIGHLIGHT_SEGMENTS, HIGHLIGHT_COLLAPSED, HIGHLIGHT_DATE
 } from "./mockData";
 import { SourcePills, SegmentControl, NewsSubPills } from "./components/Filters";
 import { Header, ShareFab } from "./components/Header";
@@ -169,15 +170,69 @@ const GLOBAL_CSS = `
 `;
 
 
-export default function AnalysisV10() {
+export default function AnalysisV10({
+  sheetArticles,
+  sheetHighlights,
+  sheetDetections,
+  sheetDomains,
+} = {}) {
   // ── 共通ナビ state（v8 と同一構造） ──
   const [mode, setMode] = useState("watch");
   const [activeSource, setActiveSource] = useState("all");
   const [isPremium, setIsPremium] = useState(false); // demo: Free/Premium 切替
 
+  // ── スプシ接続フラグ ──
+  const hasSheetArticles = Array.isArray(sheetArticles) && sheetArticles.length > 0;
+  const hasSheetHighlights = Array.isArray(sheetHighlights) && sheetHighlights.length > 0;
+
+  // ── 一覧モード用：sheet があれば adaptArticle して INITIAL_ARTICLES の代わりに ──
+  const initialArticles = useMemo(() => {
+    if (hasSheetArticles) return sheetArticles.map(adaptArticle);
+    return INITIAL_ARTICLES;
+  }, [hasSheetArticles, sheetArticles]);
+
+  // 分析モード用：sheet があれば raw articles を、なければ ARTICLES を使う
+  const analysisArticles = useMemo(() => {
+    return hasSheetArticles ? sheetArticles : ARTICLES;
+  }, [hasSheetArticles, sheetArticles]);
+
+  // ヘッダー用 データ日付範囲（sheet 接続時は動的算出）
+  const dataDateRange = useMemo(() => {
+    if (!hasSheetArticles) return DATA_DATE_RANGE;
+    const sorted = [...new Set(sheetArticles.map(a => a.date).filter(Boolean))]
+      .sort((a, b) => _parseDate(a) - _parseDate(b));
+    if (sorted.length === 0) return DATA_DATE_RANGE;
+    const fmt = (s) => {
+      const [m, d] = s.split("/");
+      return String(m).padStart(2, "0") + "/" + String(d).padStart(2, "0");
+    };
+    return `${fmt(sorted[0])} – ${fmt(sorted[sorted.length - 1])}`;
+  }, [hasSheetArticles, sheetArticles]);
+
+  // ハイライト：sheet 最新行 > mock
+  const latestHighlight = useMemo(() => {
+    if (hasSheetHighlights) {
+      const sorted = [...sheetHighlights].sort((a, b) => _parseDate(b.date) - _parseDate(a.date));
+      return sorted[0];
+    }
+    return { date: HIGHLIGHT_DATE, segments: HIGHLIGHT_SEGMENTS, collapsed: HIGHLIGHT_COLLAPSED };
+  }, [hasSheetHighlights, sheetHighlights]);
+
+  // last seen：sheet データの最新日の1つ前を仮定 (なければ mock LAST_SEEN_DATE)
+  const lastSeenDate = useMemo(() => {
+    if (!hasSheetArticles) return LAST_SEEN_DATE;
+    const sorted = [...new Set(sheetArticles.map(a => a.date).filter(Boolean))]
+      .sort((a, b) => _parseDate(b) - _parseDate(a));
+    return sorted[1] || sorted[0] || LAST_SEEN_DATE;
+  }, [hasSheetArticles, sheetArticles]);
+
   // ── 一覧モード state ──
-  const [articles, setArticles] = useState(INITIAL_ARTICLES);
-  const unreadCount = articles.filter(a => isNewArticle(a, LAST_SEEN_DATE)).length;
+  const [articles, setArticles] = useState(initialArticles);
+  // sheet データが到着したら articles を差し替え
+  useEffect(() => {
+    setArticles(initialArticles);
+  }, [initialArticles]);
+  const unreadCount = articles.filter(a => isNewArticle(a, lastSeenDate)).length;
 
   // ── 分析モード固有 state（定量/定性 + ドリル history） ──
   const [activeVp, setActiveVp] = useState("qty");
@@ -240,6 +295,7 @@ export default function AnalysisV10() {
         inviteButtonState={inviteButtonState}
         onClickInvite={() => { dismissInviteSpot(); setShowInvite(true); }}
         onClickSettings={() => { dismissInviteSpot(); setShowSettings(true); }}
+        dataDateRange={dataDateRange}
       />
 
       {/* ── 一覧モード：main の外に配置（grid 3余白等分のため） ── */}
@@ -257,6 +313,8 @@ export default function AnalysisV10() {
           toriatsukaiFilter={toriatsukaiFilter}
           setToriatsukaiFilter={setToriatsukaiFilter}
           searchKeyword={searchKeyword}
+          highlight={latestHighlight}
+          lastSeenDate={lastSeenDate}
         />
       )}
 
@@ -360,9 +418,21 @@ export default function AnalysisV10() {
                   newsSubType={newsSubType}
                   onBookmark={handleAnalysisBookmark}
                   toriatsukaiFilter={toriatsukaiFilter}
+                  articles={analysisArticles}
+                  highlight={latestHighlight}
+                  domains={sheetDomains}
                 />
               )}
-              {activeVp === "v5" && <ViewV5 filter={filter} onNavigate={handleNavigate} period={analysisPeriod} onBookmark={handleAnalysisBookmark} toriatsukaiFilter={toriatsukaiFilter} />}
+              {activeVp === "v5" && (
+                <ViewV5
+                  filter={filter}
+                  onNavigate={handleNavigate}
+                  period={analysisPeriod}
+                  onBookmark={handleAnalysisBookmark}
+                  toriatsukaiFilter={toriatsukaiFilter}
+                  articles={analysisArticles}
+                />
+              )}
               </Suspense>
             </div>
           </>

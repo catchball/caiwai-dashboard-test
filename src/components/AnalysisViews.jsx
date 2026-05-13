@@ -11,7 +11,7 @@ import {
 import { T, font } from "../tokens";
 import {
   _parseDate, adaptArticle, getWordColor, filterByPeriod,
-  DOMAIN_MEDIA_TYPE, getMediaType, shareViaUrl, useResizablePane, _buildDailyAll,
+  DOMAIN_MEDIA_TYPE, getMediaType, shareViaUrl, useResizablePane, _buildDailyAll, _buildChipTimeline,
 } from "../utils";
 import {
   ARTICLES, DAILY_ALL, DOMAIN_DATA, DATA_DATE_RANGE,
@@ -129,8 +129,8 @@ const RecommendLinks = ({ currentVp, linkedDate, linkedWord, linkedSource, onNav
 // 共起語ラベル群（定量ビューで使用、因果語なし）
 
 
-const CooccurrenceLabels = ({ date, onTapWord }) => {
-  const dayData = CHIP_TIMELINE.find(d => d.date === date);
+const CooccurrenceLabels = ({ date, onTapWord, chipTimeline = CHIP_TIMELINE }) => {
+  const dayData = chipTimeline.find(d => d.date === date);
   if (!dayData) return null;
   return (
     <div style={{ display: "flex", gap: 4, flexWrap: "wrap", padding: "4px 0" }}>
@@ -163,7 +163,13 @@ const CooccurrenceLabels = ({ date, onTapWord }) => {
    総合: 積み上げ棒（ソースフィルタで単色棒に切替）→ ドメイン別ドリル
    ═══════════════════════════════════════════════════════════ */
 
-const ViewQuantity = ({ filter, onNavigate, sourceFilter, period = "14d", newsSubType = "all-news", onBookmark, toriatsukaiFilter = TORIATSUKAI_DEFAULT }) => {
+const ViewQuantity = ({ filter, onNavigate, sourceFilter, period = "14d", newsSubType = "all-news", onBookmark, toriatsukaiFilter = TORIATSUKAI_DEFAULT, articles, highlight, domains }) => {
+  const sourceArticles = (articles && articles.length > 0) ? articles : ARTICLES;
+  const domainList = (domains && domains.length > 0) ? domains : DOMAIN_DATA;
+  const chipTimeline = useMemo(() => {
+    if (articles && articles.length > 0) return _buildChipTimeline(articles);
+    return CHIP_TIMELINE;
+  }, [articles]);
   // period は親から props で受け取る
   const [selectedDate, setSelectedDate] = useState(filter?.date || null);
   const [selectedWord, setSelectedWord] = useState(filter?.word || null);
@@ -181,7 +187,7 @@ const ViewQuantity = ({ filter, onNavigate, sourceFilter, period = "14d", newsSu
 
   // 期間＋ソース＋ニュースサブでフィルタしたデータを動的に構築
   const periodArticles = useMemo(() => {
-    let arts = filterByPeriod(ARTICLES, period);
+    let arts = filterByPeriod(sourceArticles, period);
     if (sourceFilter !== "all") {
       arts = arts.filter(a =>
         sourceFilter === "news" ? a.src === "news" :
@@ -196,7 +202,7 @@ const ViewQuantity = ({ filter, onNavigate, sourceFilter, period = "14d", newsSu
     // 取扱いフィルタ
     arts = arts.filter(a => toriatsukaiFilter[a.toriatsukai] !== false);
     return arts;
-  }, [period, sourceFilter, newsSubType, toriatsukaiFilter]);
+  }, [sourceArticles, period, sourceFilter, newsSubType, toriatsukaiFilter]);
 
   const data = useMemo(() => _buildDailyAll(periodArticles), [periodArticles]);
 
@@ -286,8 +292,8 @@ const ViewQuantity = ({ filter, onNavigate, sourceFilter, period = "14d", newsSu
               <div style={{ fontSize: 11, fontWeight: 700, color: T.ink60 }}>
                 {sourceFilter === "news" ? "News" : sourceFilter === "youtube" ? "YouTube" : "X"} のドメイン
               </div>
-              {(sourceFilter === "news" ? DOMAIN_DATA : []).map((d, i) => {
-                const widthPct = DOMAIN_DATA.length > 0 ? (d.count / DOMAIN_DATA[0].count) * 100 : 0;
+              {(sourceFilter === "news" ? domainList : []).map((d, i) => {
+                const widthPct = domainList.length > 0 ? (d.count / domainList[0].count) * 100 : 0;
                 const isSelected = selectedDomain === d.domain;
                 return (
                   <button key={i} onClick={() => setSelectedDomain(prev => prev === d.domain ? null : d.domain)}
@@ -335,7 +341,7 @@ const ViewQuantity = ({ filter, onNavigate, sourceFilter, period = "14d", newsSu
 
       </div>
       <div style={{ flex: "6 1 calc(50% - 8px)", minWidth: 280, maxWidth: 600 }}>
-        <WatchInsightBar onArticleTap={() => {}} alwaysExpanded />
+        <WatchInsightBar onArticleTap={() => {}} alwaysExpanded highlight={highlight} />
       </div>
       </div>
 
@@ -354,7 +360,7 @@ const ViewQuantity = ({ filter, onNavigate, sourceFilter, period = "14d", newsSu
                 <div style={{ fontSize: 11, fontWeight: 700, color: T.ink40, marginBottom: 4 }}>
                   {selectedDate} の共起語
                 </div>
-                <CooccurrenceLabels date={selectedDate} onTapWord={(w) => setSelectedWord(prev => prev === w ? null : w)} />
+                <CooccurrenceLabels date={selectedDate} onTapWord={(w) => setSelectedWord(prev => prev === w ? null : w)} chipTimeline={chipTimeline} />
               </div>
               <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                 <span style={{
@@ -408,15 +414,27 @@ const ViewQuantity = ({ filter, onNavigate, sourceFilter, period = "14d", newsSu
    チップサイズ=件数、同じ語=同じ色で追跡
    ═══════════════════════════════════════════════════════════ */
 
-const ViewV5 = ({ filter, onNavigate, period = "14d", onBookmark, toriatsukaiFilter = TORIATSUKAI_DEFAULT }) => {
+const ViewV5 = ({ filter, onNavigate, period = "14d", onBookmark, toriatsukaiFilter = TORIATSUKAI_DEFAULT, articles }) => {
+  const sourceArticles = (articles && articles.length > 0) ? articles : ARTICLES;
+  const chipTimeline = useMemo(() => {
+    if (articles && articles.length > 0) return _buildChipTimeline(articles);
+    return CHIP_TIMELINE;
+  }, [articles]);
+  const chipMaxCount = useMemo(() => {
+    if (chipTimeline.length === 0) return 1;
+    return Math.max(...chipTimeline.flatMap(d => d.words.map(w => w.c)));
+  }, [chipTimeline]);
+  const chipConnectedWords = useMemo(() => {
+    return new Set(chipTimeline.flatMap(day => day.words.map(w => w.w)));
+  }, [chipTimeline]);
   const [selectedChip, setSelectedChip] = useState(
     filter?.word ? { date: filter.date || null, word: filter.word } : null
   );
   // 期間でフィルタした定性マップ
-  const periodChips = useMemo(() => filterByPeriod(CHIP_TIMELINE, period), [period]);
+  const periodChips = useMemo(() => filterByPeriod(chipTimeline, period), [period, chipTimeline]);
 
   // 選択チップの記事フィルタ（取扱いフィルタ適用）
-  let filteredArticles = filterByPeriod(ARTICLES, period).filter(a => toriatsukaiFilter[a.toriatsukai] !== false);
+  let filteredArticles = filterByPeriod(sourceArticles, period).filter(a => toriatsukaiFilter[a.toriatsukai] !== false);
   if (selectedChip) {
     if (selectedChip.date) filteredArticles = filteredArticles.filter(a => a.date === selectedChip.date);
     if (selectedChip.word) filteredArticles = filteredArticles.filter(a => a.words.includes(selectedChip.word));
@@ -447,7 +465,7 @@ const ViewV5 = ({ filter, onNavigate, period = "14d", onBookmark, toriatsukaiFil
       el.querySelectorAll("[data-chip-word]").forEach(chip => {
         const w = chip.getAttribute("data-chip-word");
         const d = chip.getAttribute("data-chip-date");
-        if (!CHIP_CONNECTED_WORDS.has(w)) return;
+        if (!chipConnectedWords.has(w)) return;
         const r = chip.getBoundingClientRect();
         const cx = r.left + r.width / 2 - containerRect.left;
         const cy = r.top + r.height / 2 - containerRect.top;
@@ -462,7 +480,7 @@ const ViewV5 = ({ filter, onNavigate, period = "14d", onBookmark, toriatsukaiFil
           const a = pts[i], b = pts[i + 1];
           const midY = (a.cy + b.cy) / 2;
           const avgC = (a.count + b.count) / 2;
-          const wRatio = Math.sqrt(avgC / CHIP_MAX_COUNT);
+          const wRatio = Math.sqrt(avgC / chipMaxCount);
           lines.push({
             word: w,
             color: getWordColor(w),
@@ -484,7 +502,7 @@ const ViewV5 = ({ filter, onNavigate, period = "14d", onBookmark, toriatsukaiFil
         display: "flex", gap: 4, flexWrap: "wrap", padding: "4px 0",
         borderBottom: `1px solid ${T.ink08}`, paddingBottom: 8,
       }}>
-        {[...CHIP_CONNECTED_WORDS].slice(0, 12).map(w => (
+        {[...chipConnectedWords].slice(0, 12).map(w => (
           <span key={w} style={{
             display: "inline-flex", alignItems: "center", gap: 3,
             padding: "2px 6px", borderRadius: 4, fontSize: 11, fontWeight: 600,
@@ -533,7 +551,7 @@ const ViewV5 = ({ filter, onNavigate, period = "14d", onBookmark, toriatsukaiFil
                   const isWordHighlight = selectedChip?.word === w && !selectedChip?.date;
                   const color = getWordColor(w);
                   // サイズスケーリング: 件数に応じて fontSize / padding / height を変化
-                  const ratio = Math.sqrt(c / CHIP_MAX_COUNT); // 平方根スケール（グローバル基準）
+                  const ratio = Math.sqrt(c / chipMaxCount); // 平方根スケール（グローバル基準）
                   const sz = {
                     fontSize: Math.round(9 + ratio * 5),      // 9〜14px
                     padY: Math.round(2 + ratio * 4),           // 2〜6px

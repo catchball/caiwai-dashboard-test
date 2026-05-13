@@ -15,7 +15,7 @@ import { SegmentControl } from "./Filters";
    モード別コントロールは各モード内に配置（Header下段は廃止）
    ═══════════════════════════════════════════════════════════ */
 
-const Header = ({ activeMode, setActiveMode, isPremium, setIsPremium, inviteButtonState = "initial", onClickInvite, onClickSettings }) => (
+const Header = ({ activeMode, setActiveMode, isPremium, setIsPremium, inviteButtonState = "initial", onClickInvite, onClickSettings, dataDateRange }) => (
   <header style={{ position: "sticky", top: 0, zIndex: 100, background: T.navy }}>
     {/* ── 上段: ブランド + ユーティリティ ── */}
     <div className="hdr-top" style={{
@@ -48,7 +48,7 @@ const Header = ({ activeMode, setActiveMode, isPremium, setIsPremium, inviteButt
             padding: "1.5px 5px", borderRadius: 3,
             background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.08)",
           }}>DATA</span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,.85)" }}>{DATA_DATE_RANGE}</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,.85)" }}>{dataDateRange || DATA_DATE_RANGE}</span>
         </div>
 
       </div>
@@ -286,5 +286,7 @@ const ShareFab = ({ activeMode }) => {
     </>
   );
 };
+
+export { Header, ShareFab };
 
 export { Header, ShareFab };

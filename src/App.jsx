@@ -27,7 +27,14 @@ export default function App() {
     );
   }
 
-  return <AnalysisV10 />;
+  return (
+    <AnalysisV10
+      sheetArticles={sheet.articles}
+      sheetHighlights={sheet.highlights}
+      sheetDetections={sheet.detections}
+      sheetDomains={sheet.domains}
+    />
+  );
 }
 
 const loadStyles = {
