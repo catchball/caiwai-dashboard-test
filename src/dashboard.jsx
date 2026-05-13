@@ -3,7 +3,7 @@
    ═══════════════════════════════════════════════════════════ */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 import { T, font } from "./tokens";
 import { _parseDate, isNewArticle, filterByPeriod, matchType } from "./utils";
 import {
